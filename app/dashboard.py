@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from nepal_flood_warning.model import SimulationConfig, simulate_corridor
+from nepal_flood_warning.satellite import DailyGlacierFeatures, screen_daily_risk
 
 st.set_page_config(page_title="Nepal Flood Warning", page_icon="🌊", layout="wide")
 st.title("Nepal Flood Early-Warning Simulator")
@@ -80,6 +81,43 @@ display.columns = [
     "Population", "SMS reached", "Not reached",
 ]
 st.dataframe(display.style.format({"Arrival (min)": "{:.1f}", "Margin (min)": "{:.1f}", "Velocity (m/s)": "{:.2f}"}), use_container_width=True, hide_index=True)
+
+st.divider()
+st.header("Satellite GLOF screening prototype")
+st.caption(
+    "Enter one daily lake-feature record. The result is an uncalibrated watch index, "
+    "not a GLOF probability or public warning."
+)
+
+with st.expander("Daily glacier-lake features", expanded=False):
+    s1, s2, s3 = st.columns(3)
+    area_growth = s1.number_input("Lake-area growth over 30 days (%)", value=3.0, step=0.5)
+    rain_24h = s1.number_input("Precipitation over 24 hours (mm)", min_value=0.0, value=10.0)
+    rain_72h = s2.number_input("Precipitation over 72 hours (mm)", min_value=0.0, value=25.0)
+    pdd_7d = s2.number_input("Positive degree-days over 7 days", min_value=0.0, value=12.0)
+    snow_change = s3.number_input("Snow-fraction change over 7 days", value=-0.05, step=0.01)
+    sar_change = s3.number_input("Sentinel-1 backscatter change (dB)", value=0.5, step=0.1)
+    static_hazard = st.slider("Static lake-hazard rating", 0.0, 1.0, 0.5, 0.05)
+
+assessment = screen_daily_risk(
+    DailyGlacierFeatures(
+        lake_area_growth_30d_pct=area_growth,
+        precipitation_24h_mm=rain_24h,
+        precipitation_72h_mm=rain_72h,
+        positive_degree_days_7d=pdd_7d,
+        snow_fraction_change_7d=snow_change,
+        sar_change_db=sar_change,
+        static_hazard=static_hazard,
+    )
+)
+g1, g2, g3 = st.columns(3)
+g1.metric("Watch index", f"{assessment.score:.1f}/100")
+g2.metric("Screening band", assessment.band.title())
+g3.metric("Data confidence", f"{assessment.confidence:.0%}")
+if assessment.drivers:
+    st.write("Main drivers: " + ", ".join(assessment.drivers))
+else:
+    st.write("No input reached the current driver threshold.")
 
 st.warning(
     "Demonstration only. Operational deployment requires calibrated hydrology, redundant sensors, "
