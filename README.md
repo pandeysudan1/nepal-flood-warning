@@ -28,9 +28,26 @@ pytest
 
 ## Model
 
-The prototype assumes downstream velocity decays as v(x) = v0 exp(-kx) and integrates travel time along the corridor. Detection delay is added before warning arrival time. Evacuation margin is arrival time minus required evacuation time.
+The prototype assumes downstream velocity decays as
+
+$$v(x)=v_0 e^{-kx}$$
+
+and integrates travel time along the corridor:
+
+$$t(x)=\frac{1000}{v_0 k}\left(e^{kx}-1\right).$$
+
+Here, $x$ is distance in kilometres, $v_0$ is camera-estimated velocity in m/s, and $k$ is an illustrative routing attenuation coefficient per kilometre. Detection delay is added before warning arrival time. Evacuation margin is arrival time minus required evacuation time.
 
 This deliberately simple model makes every assumption visible. It is suitable for concept development, stakeholder discussion, and training—not live emergency decisions.
+
+## Project structure
+
+```text
+app/dashboard.py                 Streamlit dashboard
+data/trishuli_corridor.csv       Demonstration settlement data
+src/nepal_flood_warning/model.py Routing and warning logic
+tests/test_model.py              Unit tests
+```
 
 ## Roadmap
 
@@ -38,8 +55,10 @@ This deliberately simple model makes every assumption visible. It is suitable fo
 2. Estimate surface velocity from camera frames with optical flow.
 3. Fuse rainfall, water level, camera, and satellite observations.
 4. Add uncertainty intervals and sensor-failure handling.
-5. Connect a sandbox SMS provider with human authorization.
+5. Connect a sandbox SMS provider and require human authorization before alerts.
 6. Validate thresholds and governance with responsible Nepal authorities.
+
+The next project phase is documented in the [satellite glacier-lake monitoring and GLOF prediction plan](dev-doc/SATELLITE_GLOF_PLAN.md). It includes official data sources, an example Sentinel-2 scene, a daily feature schema, a scene-finder script, and a staged validation plan.
 
 ## Safety
 
