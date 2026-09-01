@@ -172,6 +172,18 @@ def main() -> None:
             [["One video"], ["One calibrated region"], ["One velocity estimate"], ["One quality result"], ["Approve or reject"]],
             [("One video", "One calibrated region"), ("One calibrated region", "One velocity estimate"), ("One velocity estimate", "One quality result"), ("One quality result", "Approve or reject")],
         ),
+        "satellite-architecture": (
+            [["Daily MODIS, GPM, and ERA5", "Sentinel-1 and Sentinel-2 snapshots"], ["Daily feature table"], ["Watch index and confidence"], ["Human review"]],
+            [("Daily MODIS, GPM, and ERA5", "Daily feature table"), ("Sentinel-1 and Sentinel-2 snapshots", "Daily feature table"), ("Daily feature table", "Watch index and confidence"), ("Watch index and confidence", "Human review")],
+        ),
+        "daily-feature-flow": (
+            [["Scene catalogue", "Weather data"], ["Quality masks and feature extraction"], ["One row per lake per day"]],
+            [("Scene catalogue", "Quality masks and feature extraction"), ("Weather data", "Quality masks and feature extraction"), ("Quality masks and feature extraction", "One row per lake per day")],
+        ),
+        "glof-development-phases": (
+            [["Inventory and polygons"], ["Historical feature archive"], ["Event and non-event labels"], ["Calibrated model"], ["Shadow-mode validation"], ["Operational decision review"]],
+            [("Inventory and polygons", "Historical feature archive"), ("Historical feature archive", "Event and non-event labels"), ("Event and non-event labels", "Calibrated model"), ("Calibrated model", "Shadow-mode validation"), ("Shadow-mode validation", "Operational decision review")],
+        ),
     }
 
     for name, (layers, edges) in flows.items():
