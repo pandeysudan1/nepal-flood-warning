@@ -1,85 +1,216 @@
 # Next Features
 
-This document defines the proposed development path after version 0.1. The immediate priority is to replace manually entered camera observations with a reproducible camera-analysis pipeline while retaining human control over every warning.
+Version 0.1 uses a velocity entered by the operator. Version 0.2 should estimate that velocity from a short river video and show enough evidence for the operator to accept or reject the result.
 
-## Next feature: camera-based surface-velocity estimation
+## Version 0.2 objective
 
-### Goal
+The next release will add camera-based surface-velocity estimation. It will not send messages or change alert status without operator approval.
 
-Allow the user to upload a short river video or select a demonstration video. The application will estimate surface-water velocity between consecutive frames and pass the result to the existing flood-routing model.
+```mermaid
+flowchart LR
+    A[River video] --> B[Motion estimate]
+    B --> C[Quality check]
+    C --> D[Operator review]
+    D --> E[Flood model]
+```
 
-### Proposed workflow
+The first implementation should support one camera, one selected river region, and one physical calibration reference. That is enough to test the complete measurement path without hiding uncertainty behind a large interface.
 
-1. Upload an MP4 video or image sequence.
-2. Select a visible river region of interest.
-3. Enter or detect a physical reference length for pixel-to-metre calibration.
-4. Track visible surface features with optical flow.
-5. Remove unreliable vectors and calculate a robust median velocity.
-6. Display the tracked vectors, confidence score, and velocity time series.
-7. Require the operator to review and approve the estimate.
-8. Send the approved value to the existing corridor simulation.
+## Measurement workflow
 
-### Initial implementation tasks
+```mermaid
+flowchart TD
+    A[Upload video] --> B[Select river region]
+    B --> C[Set distance scale]
+    C --> D[Track surface motion]
+    D --> E[Filter and summarize]
+    E --> F[Review result]
+    F --> G[Approve or reject]
+```
 
-- Add OpenCV as an optional dependency.
-- Create `src/nepal_flood_warning/camera.py`.
-- Implement frame sampling and Farnebäck or Lucas–Kanade optical flow.
-- Add pixel-to-metre and frame-time conversion.
-- Add confidence and data-quality checks.
-- Add a new Camera Analysis page to the Streamlit application.
-- Include a small non-emergency demonstration video or synthetic fixture.
-- Add tests using synthetic motion with a known velocity.
+1. Upload an MP4 file or choose the demonstration clip.
+2. Mark the region where the water surface is visible.
+3. Enter a known length in the image to convert pixels to metres.
+4. Sample frames at known time intervals.
+5. Estimate motion with optical flow.
+6. Reject vectors that are inconsistent, stationary, or outside the river region.
+7. Calculate the median velocity and its spread.
+8. Show the vectors, time series, calibration, and quality score.
+9. Let the operator approve or reject the estimate.
 
-### Acceptance criteria
+## Velocity calculation
 
-- The same demonstration video produces a repeatable velocity estimate.
-- Synthetic test motion is estimated within a documented tolerance.
-- Missing calibration prevents conversion to metres per second.
-- Low-quality or contradictory measurements are clearly rejected.
-- The application shows the original video, analysis region, motion vectors, estimate, and confidence.
-- Camera results never trigger an SMS or evacuation alert automatically.
+For a tracked displacement of $\Delta p$ pixels, image scale $s$ metres per pixel, and frame interval $\Delta t$ seconds, the surface-velocity estimate is:
 
-## Features after camera analysis
+$$
+\hat{v}
+=
+\frac{s\,\Delta p}{\Delta t}
+$$
 
-### 1. Uncertainty-aware arrival forecasts
+For $n$ valid motion vectors, use a robust central estimate:
 
-Replace the single arrival time with a range based on uncertainty in camera velocity, attenuation, detection delay, and calibration. Show earliest, median, and latest arrival estimates.
+$$
+\hat{v}_{\mathrm{surface}}
+=
+\operatorname{median}
+\left(
+\hat{v}_1,\hat{v}_2,\ldots,\hat{v}_n
+\right)
+$$
 
-### 2. Historical-event calibration
+A simple relative spread can be reported using the median absolute deviation:
 
-Add observed gauge and event data to estimate corridor-specific routing parameters instead of relying on illustrative values.
+$$
+u_{\mathrm{rel}}
+=
+\frac{
+1.4826\,\operatorname{median}
+\left(
+\left|\hat{v}_i-\hat{v}_{\mathrm{surface}}\right|
+\right)
+}{
+\hat{v}_{\mathrm{surface}}
+}
+$$
 
-### 3. Multi-sensor fusion
+```mermaid
+flowchart LR
+    A[Pixel displacement] --> C[Velocity conversion]
+    B[Scale and frame time] --> C
+    C --> D[Median estimate]
+    D --> E[Relative spread]
+```
 
-Combine camera velocity with rainfall, water level, upstream gauge, and satellite observations. Each sensor should have timestamp, status, confidence, and failure handling.
+The equations describe image-surface motion. Converting this value to depth-averaged river velocity requires a calibrated correction factor and field measurements; that conversion is outside the first camera prototype.
 
-### 4. River-network representation
+## Code changes
 
-Replace the single corridor table with a directed river graph containing tributaries, sensor sites, settlements, bridges, hydropower assets, and evacuation zones.
+```mermaid
+flowchart TD
+    A[Camera page] --> B["camera.py"]
+    B --> C[OpenCV optical flow]
+    B --> D[Quality metrics]
+    B --> E[Existing flood model]
+```
 
-### 5. Scenario playback
+| Change | Purpose |
+|---|---|
+| Add optional OpenCV dependency | Read video and calculate optical flow |
+| Create `src/nepal_flood_warning/camera.py` | Keep image processing outside the routing model |
+| Add a Camera Analysis page | Select the region, calibration, and frame range |
+| Add vector filtering | Remove weak and contradictory motion estimates |
+| Add quality metrics | Report valid-vector count, spread, and calibration state |
+| Add a synthetic fixture | Test motion against a known displacement |
+| Add camera tests | Check conversion, repeatability, rejection, and failure cases |
 
-Allow users to run historical or synthetic scenarios over time and watch the estimated flood signal move downstream on the map.
+## Acceptance tests
 
-### 6. Alert-message sandbox
+The release is ready only when each decision point below has an automated or documented test.
 
-Generate Nepali and English warning drafts in a closed sandbox. Messages must remain in preview mode until an authorized human approves a future operational integration.
+```mermaid
+flowchart TD
+    A["Video loaded?"] -->|No| B[Reject input]
+    A -->|Yes| C["Calibration valid?"]
+    C -->|No| B
+    C -->|Yes| D["Motion quality adequate?"]
+    D -->|No| B
+    D -->|Yes| E[Show result for approval]
+```
 
-### 7. Reliability dashboard
+- A fixed demonstration video gives a repeatable estimate.
+- Synthetic motion is recovered within a stated tolerance.
+- The app refuses metre-per-second output when physical calibration is missing.
+- Low valid-vector count or high spread causes rejection, not a confident value.
+- The page shows the video, selected region, motion vectors, velocity series, and quality result.
+- The estimate enters the routing model only after operator approval.
+- No camera result sends an SMS or evacuation instruction.
 
-Show sensor health, communication delay, stale data, battery state, camera visibility, missing settlements, and estimated SMS delivery failures.
+## Later releases
 
-## Suggested release sequence
+### Version 0.3: uncertainty-aware arrival time
 
-| Release | Scope | Main outcome |
+Replace the single arrival time with a distribution or interval derived from uncertainty in velocity, attenuation, calibration, and delay.
+
+```mermaid
+flowchart LR
+    A[Input distributions] --> B[Routing ensemble]
+    B --> C[Arrival interval]
+    C --> D[Decision display]
+```
+
+Report an early bound, median estimate, and late bound. Do not present uncertain minutes as a single exact forecast.
+
+### Version 0.4: historical calibration
+
+Fit the routing parameters to past observations from cameras, gauges, and known event arrival times.
+
+```mermaid
+flowchart LR
+    A[Historical events] --> B[Parameter fitting]
+    B --> C[Validation events]
+    C --> D[Corridor parameters]
+```
+
+Keep calibration events separate from validation events so that reported accuracy is not based on the data used to fit the model.
+
+### Version 0.5: sensor fusion and river network
+
+Move from one corridor table to a directed river graph. Each node can represent a sensor, settlement, bridge, hydropower asset, or confluence.
+
+```mermaid
+flowchart TD
+    A[Camera] --> D[Sensor fusion]
+    B[Gauge and rainfall] --> D
+    C[Satellite input] --> D
+    D --> E[River graph]
+    E --> F[Asset and settlement risk]
+```
+
+Every input should carry a timestamp, quality flag, communication state, and confidence value.
+
+### Version 0.6: scenario playback and alert sandbox
+
+Add historical and synthetic event playback for training. Warning messages remain drafts until an authorized operator approves a future operational connection.
+
+```mermaid
+flowchart LR
+    A[Event scenario] --> B[Time playback]
+    B --> C[Map and warnings]
+    C --> D[Message preview]
+    D --> E[Operator decision]
+```
+
+The reliability view should show stale data, camera visibility, communication delay, battery state, missing sites, and estimated delivery failures.
+
+## Release sequence
+
+```mermaid
+flowchart TD
+    A["v0.2 Camera measurement"] --> B["v0.3 Uncertainty"]
+    B --> C["v0.4 Calibration"]
+    C --> D["v0.5 Sensor network"]
+    D --> E["v0.6 Training sandbox"]
+```
+
+| Release | Deliverable | Evidence required |
 |---|---|---|
-| `v0.2` | Camera analysis prototype | Video-to-velocity estimate with confidence |
-| `v0.3` | Uncertainty model | Arrival-time intervals instead of single values |
-| `v0.4` | Calibration pipeline | Parameters fitted to historical observations |
-| `v0.5` | Multi-sensor and river graph | More realistic corridor and tributary modelling |
-| `v0.6` | Scenario playback and alert sandbox | Training and stakeholder-demonstration system |
+| `v0.2` | Video-to-velocity estimate | Synthetic test and quality report |
+| `v0.3` | Arrival-time interval | Sensitivity and coverage tests |
+| `v0.4` | Fitted corridor parameters | Separate calibration and validation events |
+| `v0.5` | Multi-sensor river graph | Timestamp and failure tests |
+| `v0.6` | Playback and message sandbox | Operator-control and audit checks |
 
-## Recommended immediate milestone
+## Immediate milestone
 
-Build `v0.2` using one short demonstration video and one synthetic optical-flow test. Keep the first implementation small: a single camera, one calibrated region, one velocity estimate, and an explicit operator-approval button before the value enters the flood model.
+Start with one short demonstration video and one synthetic motion test.
 
+```mermaid
+flowchart LR
+    A[One video] --> B[One calibrated region]
+    B --> C[One velocity estimate]
+    C --> D[One quality result]
+    D --> E[Approve or reject]
+```
+
+The milestone is complete when the application can reproduce a known synthetic velocity, reject an uncalibrated clip, and pass an approved measurement to the existing simulation without triggering any external alert.
