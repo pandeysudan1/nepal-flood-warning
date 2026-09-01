@@ -6,27 +6,13 @@ Version 0.1 uses a velocity entered by the operator. Version 0.2 should estimate
 
 The next release will add camera-based surface-velocity estimation. It will not send messages or change alert status without operator approval.
 
-```mermaid
-flowchart LR
-    A[River video] --> B[Motion estimate]
-    B --> C[Quality check]
-    C --> D[Operator review]
-    D --> E[Flood model]
-```
+![Flowchart from river video to the flood model](assets/v02-objective.png)
 
 The first implementation should support one camera, one selected river region, and one physical calibration reference. That is enough to test the complete measurement path without hiding uncertainty behind a large interface.
 
 ## Measurement workflow
 
-```mermaid
-flowchart TD
-    A[Upload video] --> B[Select river region]
-    B --> C[Set distance scale]
-    C --> D[Track surface motion]
-    D --> E[Filter and summarize]
-    E --> F[Review result]
-    F --> G[Approve or reject]
-```
+![Flowchart of the camera measurement workflow](assets/measurement-workflow.png)
 
 1. Upload an MP4 file or choose the demonstration clip.
 2. Mark the region where the water surface is visible.
@@ -40,59 +26,25 @@ flowchart TD
 
 ## Velocity calculation
 
-For a tracked displacement of $\Delta p$ pixels, image scale $s$ metres per pixel, and frame interval $\Delta t$ seconds, the surface-velocity estimate is:
+For a tracked displacement of **Δp** pixels, image scale **s** metres per pixel, and frame interval **Δt** seconds, the surface-velocity estimate is:
 
-$$
-\hat{v}
-=
-\frac{s\,\Delta p}{\Delta t}
-$$
+![Equation converting pixel displacement to surface velocity](assets/eq-video-velocity.png)
 
-For $n$ valid motion vectors, use a robust central estimate:
+For **n** valid motion vectors, use a robust central estimate:
 
-$$
-\hat{v}_{\mathrm{surface}}
-=
-\operatorname{median}
-\left(
-\hat{v}_1,\hat{v}_2,\ldots,\hat{v}_n
-\right)
-$$
+![Equation for median surface velocity](assets/eq-median-velocity.png)
 
 A simple relative spread can be reported using the median absolute deviation:
 
-$$
-u_{\mathrm{rel}}
-=
-\frac{
-1.4826\,\operatorname{median}
-\left(
-\left|\hat{v}_i-\hat{v}_{\mathrm{surface}}\right|
-\right)
-}{
-\hat{v}_{\mathrm{surface}}
-}
-$$
+![Equation for relative spread using median absolute deviation](assets/eq-relative-spread.png)
 
-```mermaid
-flowchart LR
-    A[Pixel displacement] --> C[Velocity conversion]
-    B[Scale and frame time] --> C
-    C --> D[Median estimate]
-    D --> E[Relative spread]
-```
+![Block diagram of the camera-velocity calculation](assets/velocity-calculation.png)
 
 The equations describe image-surface motion. Converting this value to depth-averaged river velocity requires a calibrated correction factor and field measurements; that conversion is outside the first camera prototype.
 
 ## Code changes
 
-```mermaid
-flowchart TD
-    A[Camera page] --> B["camera.py"]
-    B --> C[OpenCV optical flow]
-    B --> D[Quality metrics]
-    B --> E[Existing flood model]
-```
+![Block diagram of the proposed camera-analysis code](assets/code-changes.png)
 
 | Change | Purpose |
 |---|---|
@@ -108,15 +60,7 @@ flowchart TD
 
 The release is ready only when each decision point below has an automated or documented test.
 
-```mermaid
-flowchart TD
-    A["Video loaded?"] -->|No| B[Reject input]
-    A -->|Yes| C["Calibration valid?"]
-    C -->|No| B
-    C -->|Yes| D["Motion quality adequate?"]
-    D -->|No| B
-    D -->|Yes| E[Show result for approval]
-```
+![Decision flowchart for camera-analysis acceptance tests](assets/acceptance-tests.png)
 
 - A fixed demonstration video gives a repeatable estimate.
 - Synthetic motion is recovered within a stated tolerance.
@@ -132,12 +76,7 @@ flowchart TD
 
 Replace the single arrival time with a distribution or interval derived from uncertainty in velocity, attenuation, calibration, and delay.
 
-```mermaid
-flowchart LR
-    A[Input distributions] --> B[Routing ensemble]
-    B --> C[Arrival interval]
-    C --> D[Decision display]
-```
+![Flowchart for uncertainty-aware arrival time](assets/v03-uncertainty.png)
 
 Report an early bound, median estimate, and late bound. Do not present uncertain minutes as a single exact forecast.
 
@@ -145,12 +84,7 @@ Report an early bound, median estimate, and late bound. Do not present uncertain
 
 Fit the routing parameters to past observations from cameras, gauges, and known event arrival times.
 
-```mermaid
-flowchart LR
-    A[Historical events] --> B[Parameter fitting]
-    B --> C[Validation events]
-    C --> D[Corridor parameters]
-```
+![Flowchart for historical-event calibration](assets/v04-calibration.png)
 
 Keep calibration events separate from validation events so that reported accuracy is not based on the data used to fit the model.
 
@@ -158,14 +92,7 @@ Keep calibration events separate from validation events so that reported accurac
 
 Move from one corridor table to a directed river graph. Each node can represent a sensor, settlement, bridge, hydropower asset, or confluence.
 
-```mermaid
-flowchart TD
-    A[Camera] --> D[Sensor fusion]
-    B[Gauge and rainfall] --> D
-    C[Satellite input] --> D
-    D --> E[River graph]
-    E --> F[Asset and settlement risk]
-```
+![Block diagram for sensor fusion and river-network modelling](assets/v05-sensor-fusion.png)
 
 Every input should carry a timestamp, quality flag, communication state, and confidence value.
 
@@ -173,25 +100,13 @@ Every input should carry a timestamp, quality flag, communication state, and con
 
 Add historical and synthetic event playback for training. Warning messages remain drafts until an authorized operator approves a future operational connection.
 
-```mermaid
-flowchart LR
-    A[Event scenario] --> B[Time playback]
-    B --> C[Map and warnings]
-    C --> D[Message preview]
-    D --> E[Operator decision]
-```
+![Flowchart for scenario playback and message review](assets/v06-playback.png)
 
 The reliability view should show stale data, camera visibility, communication delay, battery state, missing sites, and estimated delivery failures.
 
 ## Release sequence
 
-```mermaid
-flowchart TD
-    A["v0.2 Camera measurement"] --> B["v0.3 Uncertainty"]
-    B --> C["v0.4 Calibration"]
-    C --> D["v0.5 Sensor network"]
-    D --> E["v0.6 Training sandbox"]
-```
+![Flowchart of the planned release sequence](assets/release-sequence.png)
 
 | Release | Deliverable | Evidence required |
 |---|---|---|
@@ -205,12 +120,6 @@ flowchart TD
 
 Start with one short demonstration video and one synthetic motion test.
 
-```mermaid
-flowchart LR
-    A[One video] --> B[One calibrated region]
-    B --> C[One velocity estimate]
-    C --> D[One quality result]
-    D --> E[Approve or reject]
-```
+![Flowchart of the immediate version 0.2 milestone](assets/immediate-milestone.png)
 
 The milestone is complete when the application can reproduce a known synthetic velocity, reject an uncalibrated clip, and pass an approved measurement to the existing simulation without triggering any external alert.

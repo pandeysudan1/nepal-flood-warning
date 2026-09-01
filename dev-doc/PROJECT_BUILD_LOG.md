@@ -11,35 +11,17 @@ This file records the scope, structure, equations, checks, and publication of ve
 
 Version 0.1 models a flood signal moving from Rasuwagadhi toward Bidur along the Trishuli corridor. An operator enters the surface velocity measured at a camera, the water-level rise rate, and the expected evacuation time. The model estimates when the signal reaches each settlement and assigns an alert level.
 
-```mermaid
-flowchart LR
-    A[Camera observation] --> B[Operator inputs]
-    B --> C[Flood routing]
-    C --> D[Arrival time]
-    D --> E[Alert level]
-```
+![Flowchart from camera observation to alert level](assets/v01-workflow.png)
 
 The dashboard also compares the population at each site with an assumed SMS delivery rate. It reports both the estimated number reached and the number not reached.
 
-```mermaid
-flowchart LR
-    A[Site population] --> C[SMS coverage]
-    B[Delivery rate] --> C
-    C --> D[Reached]
-    C --> E[Not reached]
-```
+![Flowchart for estimating SMS coverage](assets/sms-coverage.png)
 
 ## Software structure
 
 The calculation code is separate from the dashboard. This keeps the model testable without starting Streamlit.
 
-```mermaid
-flowchart TD
-    A[Streamlit dashboard] --> B[Simulation model]
-    C[Corridor CSV] --> B
-    B --> D[Map and charts]
-    E[Pytest suite] --> B
-```
+![Block diagram of the software structure](assets/software-structure.png)
 
 | Path | Purpose |
 |---|---|
@@ -57,98 +39,50 @@ flowchart TD
 
 The model assumes exponential attenuation of the observed surface velocity:
 
-$$
-v(x) = v_0\exp(-kx)
-$$
+![Equation for downstream velocity](assets/eq-downstream-velocity.png)
 
 where:
 
-- $v(x)$ is the routed velocity at chainage $x$, in metres per second;
-- $v_0$ is the camera observation, in metres per second;
-- $x$ is downstream distance, in kilometres;
-- $k$ is the attenuation coefficient, in inverse kilometres.
+- **v(x)** is the routed velocity at chainage **x**, in metres per second;
+- **v₀** is the camera observation, in metres per second;
+- **x** is downstream distance, in kilometres;
+- **k** is the attenuation coefficient, in inverse kilometres.
 
-```mermaid
-flowchart LR
-    A[Observed velocity v₀] --> C[Exponential attenuation]
-    B[Distance x and coefficient k] --> C
-    C --> D["Routed velocity v(x)"]
-```
+![Block diagram for downstream-velocity calculation](assets/downstream-velocity.png)
 
 ### Travel time
 
-Travel time follows from integrating $1/v(x)$ along the river. Because distance is entered in kilometres and velocity in metres per second, the equation includes a factor of $1000$:
+Travel time follows from integrating **1/v(x)** along the river. Because distance is entered in kilometres and velocity in metres per second, the equation includes a factor of **1000**:
 
-$$
-t_{\mathrm{travel}}(x)
-=
-\frac{1000}{v_0 k}
-\left[\exp(kx)-1\right],
-\qquad k>0
-$$
+![Travel-time equation for positive attenuation](assets/eq-travel-positive.png)
 
 For zero attenuation, the implementation uses the limiting case:
 
-$$
-t_{\mathrm{travel}}(x)
-=
-\frac{1000x}{v_0},
-\qquad k=0
-$$
+![Travel-time equation for zero attenuation](assets/eq-travel-zero.png)
 
 Both results are in seconds. The dashboard converts them to minutes and adds the detection delay:
 
-$$
-t_{\mathrm{arrival}}(x)
-=
-\frac{t_{\mathrm{travel}}(x)}{60}
-+ t_{\mathrm{delay}}
-$$
+![Arrival-time equation including detection delay](assets/eq-arrival-time.png)
 
-```mermaid
-flowchart LR
-    A[Routed velocity] --> C[Travel-time integral]
-    B[Detection delay] --> D[Arrival time]
-    C --> D
-```
+![Block diagram for arrival-time calculation](assets/travel-time.png)
 
 ### Evacuation margin and alert level
 
 The evacuation margin is the time left after allowing for the required evacuation period:
 
-$$
-M_{\mathrm{evac}}(x)
-=
-t_{\mathrm{arrival}}(x)
-- t_{\mathrm{required}}
-$$
+![Evacuation-margin equation](assets/eq-evacuation-margin.png)
 
 A negative margin means the assumed evacuation time is longer than the available warning time. Version 0.1 combines this margin with routed velocity and observed water-level rise rate. The result is one of four states: **Normal**, **Watch**, **Warning**, or **Evacuate**.
 
-```mermaid
-flowchart TD
-    A[Arrival time] --> C[Evacuation margin]
-    B[Required time] --> C
-    C --> D[Threshold rules]
-    E[Velocity and rise rate] --> D
-    D --> F[Alert state]
-```
+![Block diagram for evacuation margin and alert classification](assets/alert-logic.png)
 
 ### SMS coverage
 
-For a site with population $N$ and assumed delivery rate $p_{\mathrm{SMS}}$:
+For a site with population **N** and assumed delivery rate **pSMS**:
 
-$$
-N_{\mathrm{reached}}
-=
-\operatorname{round}\!\left(Np_{\mathrm{SMS}}\right)
-$$
+![Equation for the estimated population reached by SMS](assets/eq-sms-reached.png)
 
-$$
-N_{\mathrm{unreached}}
-=
-N-N_{\mathrm{reached}}
-$$
+![Equation for the estimated population not reached by SMS](assets/eq-sms-unreached.png)
 
 This is a coverage estimate, not confirmation that a person read or acted on a message.
 
@@ -156,13 +90,7 @@ This is a coverage estimate, not confirmation that a person read or acted on a m
 
 The work was completed in four stages.
 
-```mermaid
-flowchart LR
-    A[Create package] --> B[Add model and data]
-    B --> C[Test and lint]
-    C --> D[Commit locally]
-    D --> E[Publish on GitHub]
-```
+![Flowchart of the build and publication stages](assets/build-record.png)
 
 1. Created the package, dashboard, dataset, tests, README, `.gitignore`, and MIT licence.
 2. Ran the four unit tests; all passed.
@@ -174,14 +102,6 @@ flowchart LR
 
 Version 0.1 is a calculation and training prototype. It is not an emergency-warning system.
 
-```mermaid
-flowchart TD
-    A[Research prototype] --> B[Calibration]
-    A --> C[Field validation]
-    A --> D[Redundant sensing]
-    B --> E[Operational review]
-    C --> E
-    D --> E
-```
+![Block diagram of the work required before operational use](assets/operational-boundary.png)
 
 Operational use would require measured hydrology, uncertainty bounds, sensor-failure handling, reliable communications, authorized human decisions, documented procedures, and agreement with the responsible Nepal authorities.
