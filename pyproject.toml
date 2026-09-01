@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nepal-flood-warning"
+version = "0.1.0"
+description = "Camera-assisted flash-flood warning simulator for Nepal's mountain river corridors"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Madhusudhan Pandey"}]
+dependencies = [
+  "pandas>=2.0",
+  "plotly>=5.20",
+  "streamlit>=1.36",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
