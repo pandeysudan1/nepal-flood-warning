@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+dev = ["matplotlib>=3.8", "pytest>=8.0", "ruff>=0.6"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -28,4 +28,3 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-
